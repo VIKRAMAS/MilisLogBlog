@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<proxy xmlns="http://ws.apache.org/ns/synapse"
+       name="BPMNProcess_start_proxy"
+       transports="jms"
+       startOnLoad="true"
+       trace="disable">
+   <description/>
+   <target>
+      <endpoint>
+         <http method="POST"
+               uri-template="https://localhost:9444/bpmn/runtime/process-instances"/>
+      </endpoint>
+      <inSequence>
+         <log level="full"/>
+         <property xmlns:m0="http://services.samples"
+                   name="company"
+                   expression="//m0:placeOrder/m0:order/m0:symbol"/>
+         <property xmlns:m0="http://services.samples"
+                   name="price"
+                   expression="//m0:placeOrder/m0:order/m0:price"/>
+         <property xmlns:m0="http://services.samples"
+                   name="quantity"
+                   expression="//m0:placeOrder/m0:order/m0:quantity"/>
+         <log>
+            <property name="CompanyName" expression="get-property('company')"/>
+            <property name="Price" expression="get-property('price')"/>
+            <property name="Quantity" expression="get-property('quantity')"/>
+         </log>
+         <property name="AuthHeader"
+                   expression="fn:concat('Basic ', base64Encode('admin:admin'))"
+                   scope="default"
+                   type="STRING"/>
+         <script language="js">var result, i, j; 
+result = ''; 
+for(j=0; j&lt;32; j++) 
+{ 
+   if( j == 8 || j == 12|| j == 16|| j == 20) 
+                result = result + '-'; 
+   i = Math.floor(Math.random()*16).toString(16).toUpperCase(); 
+   result = result + i; 
+} 
+mc.setProperty("CONTEXT_ID", result);</script>
+         <payloadFactory media-type="json">
+            <format>
+         		{
+			   "processDefinitionKey":"myProcess",
+			   "tenantId": "-1234",
+			   "variables": [
+			      {
+			        "name":"purchaseID",
+			        "value":"$1"
+			      },
+			      {
+			        "name":"CompanyID",
+			        "value":"$2"
+			      },
+			      {
+			        "name":"stockPrice",
+			        "value":"$3"
+			      },
+			      {
+			        "name":"quantity",
+			        "value":"$4"
+			      }
+			   ]
+			} 
+         	</format>
+            <args>
+               <arg evaluator="xml" expression="get-property('CONTEXT_ID')"/>
+               <arg evaluator="xml" expression="get-property('company')"/>
+               <arg evaluator="xml" expression="get-property('price')"/>
+               <arg evaluator="xml" expression="get-property('quantity')"/>
+            </args>
+         </payloadFactory>
+         <log>
+            <property name="AuthHeader" expression="get-property('AuthHeader')"/>
+         </log>
+         <header name="Authorization"
+                 scope="transport"
+                 expression="fn:concat('Basic ', base64Encode('admin:admin'))"/>
+         <header name="Content-Type" scope="transport" value="application/json"/>
+         <header name="Accept" scope="transport" value="application/json"/>
+         <log level="full"/>
+      </inSequence>
+      <outSequence>
+         <log level="full"/>
+      </outSequence>
+   </target>
+   <parameter name="transport.jms.Destination">StockOrderInQueue</parameter>
+</proxy>
